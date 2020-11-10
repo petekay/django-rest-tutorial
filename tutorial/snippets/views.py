@@ -5,30 +5,32 @@ from django.contrib.auth.models import User
 from rest_framework import permissions
 from snippets.permissions import IsOwnerOrReadOnly
 
-"""
-Using generic class-based views
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
 
-Using the mixin classes we've rewritten the views to use slightly less code than before, but we can go one step further. 
-REST framework provides a set of already mixed-in generic views that we can use to trim down our views.py module even more.
+from rest_framework import renderers
+from rest_framework.response import Response
 
-"""
-
-"""
-Associating Snippets with Users
-
-Right now, if we created a code snippet, there'd be no way of associating the user that created the snippet, with the snippet instance. 
-The user isn't sent as part of the serialized representation, but is instead a property of the incoming request.
-
-The way we deal with that is by overriding a .perform_create() method on our snippet views, that allows us to modify how the instance save is managed, 
-and handle any information that is implicit in the incoming request or requested URL.
-
-On the SnippetList view class, add the following method:
-"""
+@api_view(['GET'])
+def api_root(request, format=None):
+    return Response({
+        'users': reverse('user-list', request=request, format=format),
+        'snippets': reverse('snippet-list', request=request, format=format)
+    })
 
 """
-We'll also add a couple of views to views.py. 
-We'd like to just use read-only views for the user representations, so we'll use the ListAPIView and RetrieveAPIView generic class-based views.
+Two things should be noticed here. First, we're using REST framework's reverse function in order to return fully-qualified URLs; 
+second, URL patterns are identified by convenience names that we will declare later on in our snippets/urls.py.
 """
+
+class SnippetHighlight(generics.GenericAPIView):
+    queryset = Snippet.objects.all()
+    renderer_classes = [renderers.StaticHTMLRenderer]
+
+    def get(self, request, *args, **kwargs):
+        snippet = self.get_object()
+        return Response(snippet.highlighted)
 
 class SnippetList(generics.ListCreateAPIView):
     queryset = Snippet.objects.all()

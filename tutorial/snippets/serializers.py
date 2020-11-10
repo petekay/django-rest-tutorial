@@ -3,23 +3,45 @@ from snippets.models import Snippet, LANGUAGE_CHOICES, STYLE_CHOICES
 from django.contrib.auth.models import User
 
 
-class SnippetSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.username') #We could have also used CharField(read_only=True) here.    
+"""
+Hyperlinking our API
+
+Dealing with relationships between entities is one of the more challenging aspects of Web API design. There are a number of different ways that we might choose to represent a relationship:
+
+    Using primary keys.
+    Using hyperlinking between entities.
+    Using a unique identifying slug field on the related entity.
+    Using the default string representation of the related entity.
+    Nesting the related entity inside the parent representation.
+    Some other custom representation.
+
+REST framework supports all of these styles, and can apply them across forward or reverse relationships, or apply them across custom managers such as generic foreign keys.
+
+In this case we'd like to use a hyperlinked style between entities. In order to do so, we'll modify our serializers to extend HyperlinkedModelSerializer instead of the existing ModelSerializer.
+
+The HyperlinkedModelSerializer has the following differences from ModelSerializer:
+
+    It does not include the id field by default.
+    It includes a url field, using HyperlinkedIdentityField.
+    Relationships use HyperlinkedRelatedField, instead of PrimaryKeyRelatedField.
+
+We can easily re-write our existing serializers to use hyperlinking. In your snippets/serializers.py add:
+
+"""
+
+class SnippetSerializer(serializers.HyperlinkedModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')
+    highlight = serializers.HyperlinkedIdentityField(view_name='snippet-highlight', format='html')
+
     class Meta:
         model = Snippet
-        fields = ['id', 'title', 'code', 'linenos', 'language', 'style', 'owner']   
-    
+        fields = ['url', 'id', 'highlight', 'owner',
+                  'title', 'code', 'linenos', 'language', 'style']
 
 
-
-"""
-Because 'snippets' is a reverse relationship on the User model, it will not be included by default when using the ModelSerializer class, so we needed to add an explicit field for it.
-"""
-
-
-class UserSerializer(serializers.ModelSerializer):
-    snippets = serializers.PrimaryKeyRelatedField(many=True, queryset=Snippet.objects.all())
+class UserSerializer(serializers.HyperlinkedModelSerializer):
+    snippets = serializers.HyperlinkedRelatedField(many=True, view_name='snippet-detail', read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'snippets']        
+        fields = ['url', 'id', 'username', 'snippets']
